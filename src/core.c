@@ -52,7 +52,28 @@ void limb_list_push (Arena *arena, LimbedList *list, Limb limb)
 // - rhjr: Cyclic Coordinate Descent
 void cyclic_coordinate_descent (LimbedList *list, Vec2 endpoint)
 {
-	// TODO
+	Vec2 end_pos = list->root->limb.position;
+
+	//- rhjr: Forward inverse kinematics
+	//  Ex = (l_1 * cos(a_1)) + (l_2 * cos(a_1 + a_2)) + ... (list->last).
+	//  Ey = (l_1 * sin(a_1)) + (l_2 * sin(a_1 + a_2)) + ... (list->last).
+	//
+	for(LimbNode *current = list->root; current != NULL;
+		current = current->next)
+	{
+		current->limb.position.x =
+			end_pos.x + current->limb.length * cosf(current->limb.angle);
+
+		current->limb.position.y =
+			end_pos.y + current->limb.length * sinf(current->limb.angle);
+
+		end_pos    = current->limb.position;
+		end_pos.x += current->limb.angle;
+
+		printf("Position limb: { %f, %f }\n", end_pos.x, end_pos.y);
+	}
+	printf("\n");
+	printf("Position end effector: { %f, %f }\n", end_pos.x, end_pos.y);
 }
 
 //- rhjr: Entry point
@@ -68,9 +89,9 @@ int main(void)
 
 	//- rhjr: Initialize arm.
 	LimbedList list = {0};
-	limb_list_push(&arena, &list, limb_lit(vec2(1, 1), 4, 1));
-	limb_list_push(&arena, &list, limb_lit(vec2(2, 2), 4, -0.2));
-	limb_list_push(&arena, &list, limb_lit(vec2(3, 1), 4, 0.5));
+	limb_list_push(&arena, &list, limb_lit(4,  1,   {0}));
+	limb_list_push(&arena, &list, limb_lit(4, -0.2, {0}));
+	limb_list_push(&arena, &list, limb_lit(4,  0.5, {0}));
 
 	//- rhjr: Forward kinematics 
 	cyclic_coordinate_descent(&list, vec2(3, 3));

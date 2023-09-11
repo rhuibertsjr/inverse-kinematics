@@ -26,12 +26,13 @@ void   arena_free  (Arena *arena);
 typedef struct Limb Limb;
 struct Limb
 {
-	Vec2 position;
 	uint32_t length;
 	float angle;
+
+	Vec2 position;
 };
 
-#define limb_lit(v, l, a) (Limb) {v, l, a}
+#define limb_lit(l, a, v) (Limb) {l, a, v}
 
 typedef struct LimbNode LimbNode;
 struct LimbNode
