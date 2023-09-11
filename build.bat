@@ -1,6 +1,6 @@
 @echo off
 
-if not exist "S:\motion-and-vision\inverse-kinematics\bin\" mkdir "S:\motion-and-vision\inverse-kinematics\bin"
+if not exist ".\bin\" mkdir ".\bin"
 
 pushd .\bin
 
