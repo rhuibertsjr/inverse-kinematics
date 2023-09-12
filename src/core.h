@@ -5,6 +5,12 @@
 #include "math.h"
 
 //------------------------------------------------------------------------------
+//- rhjr: Enviroment 
+#if !defined(_WIN64) || !defined(_MSC_VER)
+    #warning "Only tested on Windows 11, with the MSVC compiler."
+#endif
+
+//------------------------------------------------------------------------------
 //- rhjr: Arena Allocator
 
 typedef struct Arena Arena;
@@ -26,13 +32,13 @@ void   arena_free  (Arena *arena);
 typedef struct Limb Limb;
 struct Limb
 {
-	uint32_t length;
+	float length;
 	float angle;
 
 	Vec2 position;
 };
 
-#define limb_lit(l, a, v) (Limb) {l, a, v}
+#define limb_lit(length, angle) (Limb) {length, angle, {0}}
 
 typedef struct LimbNode LimbNode;
 struct LimbNode
@@ -51,11 +57,15 @@ struct LimbedList
 };
 
 void limb_list_push (Arena *arena, LimbedList *list, Limb limb);
+Vec2 limb_list_calculate_end_effector (LimbedList *list);
 
-//------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 //- rhjr: Kinematica 
 
+#define CCD_MAX_TRIES     100
+#define CCD_POS_THRESHOLD 1.0f
+
 // - rhjr: Cyclic Coordinate Descent
-void cyclic_coordinate_descent (LimbedList *list, Vec2 endpoint);
+void cyclic_coordinate_descent (LimbedList *list, Vec2 target);
 
 #endif

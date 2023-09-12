@@ -4,6 +4,14 @@
 #include <math.h>
 
 //------------------------------------------------------------------------------
+//- rhjr: Types + helpers
+
+#define PI 3.14159265358979
+
+#define radians_to_degrees(rads) ((rads) * (180 / PI))
+#define degrees_to_radians(deg)  ((deg) * (PI / 180))
+
+//------------------------------------------------------------------------------
 //- rhjr: Vector 2D
 
 typedef union Vec2 Vec2;
@@ -20,12 +28,10 @@ union Vec2
 
 Vec2 vec2(float x, float y);
 
-//- rhjr: The dot-product of two vectors can be geometrically interpreted as 
-//            u * v = |u||v| * cos(\theta).
-float vec2_dot_product(Vec2 u, Vec2 v);
+Vec2 vec2_addition (Vec2 u, Vec2 v); 
+Vec2 vec2_subtract (Vec2 u, Vec2 v); 
 
-//- rhjr Euclidean distance of two vectors.
-float vec2_distance(Vec2 u, Vec2 v);
+float vec2_dot_product (Vec2 u, Vec2 v);
 
 //------------------------------------------------------------------------------
 //- rhjr: Vector 3D 
@@ -43,9 +49,12 @@ union Vec3
 	float v[3];
 };
 
-Vec3 vec3(float x, float y, float z);
-Vec3 vec3_cross_product(Vec3 u, Vec3 v);
+Vec3 vec3 (float x, float y, float z);
 
-Vec3 vec2_to_vec3(Vec2 v);
+Vec3 vec3_cross_product (Vec3 u, Vec3 v);
+
+//------------------------------------------------------------------------------
+//- rhjr: Vector helpers 
+Vec3 vec2_to_vec3 (Vec2 v);
 
 #endif 
