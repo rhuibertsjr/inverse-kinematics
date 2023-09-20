@@ -1,130 +1,165 @@
 #include "core.h"
+
 #include <stdio.h>
 #include <string.h>
 
-//- rhjr: Arena allocator
-void arena_init(Arena *arena, void *back_buffer, uint64_t size)
+//- rhjr: arena allocator 
+void
+arena_init (Arena *arena, void *back_buffer, uint64_t size)
 {
-	arena->memory = (uint64_t*) back_buffer;
-	arena->position = 0;
-	arena->size = size;
+  arena->memory = (uint64_t*) back_buffer;
+  arena->position = 0;
+  arena->size = size;
 }
 
-void * arena_alloc(Arena *arena, uint64_t size)
+void
+*arena_alloc (Arena *arena, uint64_t size)
 {
-	if (arena->position + size <= arena->size)
-	{
-		//- rhjr: cast because, void* not defined in MSVC.
-		void *ptr = (uint64_t*) arena->memory + arena->position;
-		arena->position += size;
+  if (arena->position + size <= arena->size)
+  {
+    // rhjr: cast because, void* size not defined in MSVC.
+    void *ptr = (uint64_t*) arena->memory + arena->position;
+    arena->position += size;
+      
+    memset(ptr, 0, size);
+    return ptr;
+  }
 
-		memset(ptr, 0, size);
-		return ptr;
-	}
-
-	return NULL;
+  return NULL;
 }
 
-void arena_free(Arena *arena)
+void
+arena_free (Arena *arena)
 {
-	arena->position = 0;
+  arena->position = 0;
 }
 
-//- rhjr: Limb
-void limb_print(Limb *limb)
+//- rhjr: limbed list 
+void
+limb_list_push (Arena *arena, LimbedList *list, Limb limb)
 {
-	printf(
-		"Limb at {x: %f, y: %f }:\n  length: %f;\n  angle: %f; \n\n",
-		limb->position.x, limb->position.y, limb->length, limb->angle);
+  LimbNode node = { limb, 0, list->last };
+  LimbNode *ptr =
+    (LimbNode*) arena_alloc(arena, sizeof(LimbNode));
+
+  if (list->first == NULL)
+  {
+    list->first = list->last = ptr;
+  }	
+  else
+  {
+    list->last->next = ptr;
+    list->last = ptr;
+  }
+
+  memcpy(ptr, &node, sizeof(LimbNode));
+  list->limb_amount += 1;
 }
 
-//- rhjr: LimbedList
-void limb_list_push (Arena *arena, LimbedList *list, Limb limb)
+//- rhjr: kinematics  
+Vec2
+kinematics_calculate_end_position (LimbedList *list)
 {
-	LimbNode node = { limb, 0 };
-	LimbNode *ptr =
-		(LimbNode*) arena_alloc(arena, sizeof(LimbNode));
+  Vec2 previous_position = {0};
+  float previous_angle = 0;
 
-	if (list->root == NULL)
-	{
-		list->root = list->last = ptr;
-	}	
-	else
-	{
-		list->last->next = ptr;
-		list->last = ptr;
-	}
+  for(LimbNode *current = list->first; current != NULL; current = current->next)
+  {
+    Limb *limb = &current->limb;
 
-	memcpy(ptr, &node, sizeof(LimbNode));
+    // rhjr: tail position
+    limb->tail_position = previous_position;
 
-	list->limb_amount += 1;
+    // rhjr: head position
+    limb->head_position.x = previous_position.x + limb->length * cosf(
+      degrees_to_radians(limb->angle));
+
+    limb->head_position.y = previous_position.y + limb->length * sinf(
+      degrees_to_radians(limb->angle));
+
+    // rhjr: update for next limb
+    previous_position = limb->head_position;
+    previous_angle = limb->angle;
+  }
+
+  return previous_position;
+
 }
 
-Vec2 limb_list_calculate_end_effector(LimbedList *list)
+void
+kinematics_cyclic_coordinate_descent (LimbedList *list, Vec2 target)
 {
-	Vec2 end_effector_position = list->root->limb.position;
+  Vec2 current_position = kinematics_calculate_end_position(list);
+  float distance = {0};
+  uint32_t tries = 0;
 
-	Vec2 previous_position = {0};
-	float previous_angle = 0;
+  // rhjr: loop throught the list in reverse. 
+  LimbNode *current = list->last;
 
-	//- rhjr: forward kinematics
-	//  Ex = (l_1 * sin(a_1)) + (l_2 * cos(a_1 + a_2)) + ... (list->last).
-	//  Ey = (l_1 * cos(a_1)) + (l_2 * sin(a_1 + a_2)) + ... (list->last).
-	//
-	for(LimbNode *current = list->root; current != NULL;
-		current = current->next)
-	{
-		Limb *limb = &current->limb;
+  do
+  { 
+    Limb *limb = &current->limb;
+    Vec2 destination =
+      vec2_normalize(vec2_subtract(target, limb->tail_position));
+    Vec2 current_position_norm = vec2_normalize(limb->head_position);
 
-		//- rhjr: if multiple limbs are defined, then use the last one as root.
-		limb->position =
-			vec2_addition(limb->position, previous_position);
-		limb->angle += previous_angle;
+    // rhjr: target angle
+    float target_angle = vec2_dot_product(destination, current_position_norm);
+    if (target_angle < 0.99999) // rhjr: when angle is 1, no rotation is needed.
+    {
+      // rhjr: determine direction.
+      Vec3 direction =
+        vec3_cross_product(
+          vec3_lit(destination), vec3_lit(limb->head_position));
+      float turn_angle = radians_to_degrees(acosf(target_angle));
 
-		//- rhjr: calculate the position of limb.
-		limb->position.x =
-			limb->position.x + limb->length * sinf(
-				degrees_to_radians(limb->angle));
+      if (direction.z > 0.0f) // rhjr: turn clockwise
+        limb->angle -= turn_angle;
+      else if (direction.z < 0.0f) //rhjr: turn counter-clockwise
+        limb->angle += turn_angle;
+    }
 
-		limb->position.y =
-			limb->position.y + limb->length * cosf(
-				degrees_to_radians(limb->angle));
+    current_position = kinematics_calculate_end_position(list);
 
-		printf(
-			"Limb at {x: %.2f, y: %.2f }:\n  length: %2.f;\n  angle: %2.f;\n",
-			limb->position.x, limb->position.y, limb->length, limb->angle);
+    // rhjr: next limb.
+    if (current->prev != NULL)
+      current = current->prev;
+    else 
+      current = list->last;
 
-		previous_position = limb->position;
-		previous_angle = limb->angle;
-	}
+    distance = vec2_distance(target, current_position);
 
-	return end_effector_position;
+    printf("Limb %u: { x: %.2f, y: %.2f }\n",
+           limb->id, limb->head_position.x, limb->head_position.x);
+  }
+  while(distance > CCD_POS_THRESHOLD && tries++ < CCD_MAX_TRIES);
+
+  printf("End effector: { x: %.2f, y: %.2f, angle: %.2f }\n",
+         list->last->limb.head_position.x, list->last->limb.head_position.x,
+         list->last->limb.angle);
+
 }
 
-// - rhjr: Cyclic Coordinate Descent
-void cyclic_coordinate_descent (LimbedList *list, Vec2 target)
+//- rhjr: 
+int
+main (void)
 {
-	//- rhjr: inverse kinematics
-}
+  uint64_t buffer[ARENA_COMMIT_SIZE] = {0};
 
-#define ARENA_COMMIT_SIZE 1024
+  Arena arena = {0};
+  arena_init(&arena, &buffer, ARENA_COMMIT_SIZE);
 
-//- rhjr: Entry point
-int main(void)
-{
-	uint64_t buffer[ARENA_COMMIT_SIZE] = {0};
+  // rhjr: initialize robot arm.
+  LimbedList list = {0};
+  limb_list_push(&arena, &list, limb_lit(0, 1,     90));
+  limb_list_push(&arena, &list, limb_lit(1, 1.414, 45)); 
+  limb_list_push(&arena, &list, limb_lit(2, 1.414,  0)); 
 
-	Arena arena = {0};
-	arena_init(&arena, &buffer, ARENA_COMMIT_SIZE);
+  // rhjr: forward kinematics 
+  kinematics_calculate_end_position(&list);
 
-	//- rhjr: Initialize arm.
-	LimbedList list = {0};
-	limb_list_push(&arena, &list, limb_lit(1.414,  45));
-	limb_list_push(&arena, &list, limb_lit(1,      45)); 
-	limb_list_push(&arena, &list, limb_lit(1.414,  45)); 
+  // rhjr: inverse kinematics
+  kinematics_cyclic_coordinate_descent(&list, vec2_lit(2, 3));
 
-	//- rhjr: Forward kinematics 
-	limb_list_calculate_end_effector(&list);
-
-	return 0;
+  return 0;
 }
