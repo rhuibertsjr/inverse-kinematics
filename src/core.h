@@ -60,7 +60,7 @@ void limb_list_push    (Arena *arena, LimbedList *list, Limb limb);
 
 //- rhjr: kinematics 
 #define CCD_MAX_TRIES     10
-#define CCD_POS_THRESHOLD 1.0f
+#define CCD_POS_THRESHOLD 0.1f
 
 // rhjr: forward kinematics 
 Vec2 kinematics_calculate_end_position (LimbedList *list);

@@ -53,7 +53,7 @@ vec2_normalize (Vec2 v)
   if (magnitude == 0.0) return v;
 
   v.x /= magnitude;
-  v.x /= magnitude;
+  v.y /= magnitude;
 
   return v;
 }

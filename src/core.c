@@ -82,7 +82,7 @@ kinematics_calculate_end_position (LimbedList *list)
     previous_angle = limb->angle;
   }
 
-  return previous_position;
+  return list->last->limb.head_position;
 
 }
 
@@ -100,7 +100,7 @@ kinematics_cyclic_coordinate_descent (LimbedList *list, Vec2 target)
   { 
     Limb *limb = &current->limb;
     Vec2 destination =
-      vec2_normalize(vec2_subtract(target, limb->tail_position));
+      vec2_normalize(vec2_subtract(target, current_position));
     Vec2 current_position_norm = vec2_normalize(limb->head_position);
 
     // rhjr: target angle
@@ -130,19 +130,18 @@ kinematics_cyclic_coordinate_descent (LimbedList *list, Vec2 target)
     distance = vec2_distance(target, current_position);
 
     printf("Limb %u: { x: %.2f, y: %.2f }\n",
-           limb->id, limb->head_position.x, limb->head_position.x);
+      limb->id, limb->head_position.x, limb->head_position.y);
   }
   while(distance > CCD_POS_THRESHOLD && tries++ < CCD_MAX_TRIES);
 
-  printf("End effector: { x: %.2f, y: %.2f, angle: %.2f }\n",
-         list->last->limb.head_position.x, list->last->limb.head_position.x,
-         list->last->limb.angle);
+  printf("End effector: { x: %.2f, y: %.2f }\n",
+    list->last->limb.head_position.x, list->last->limb.head_position.y);
 
 }
 
 //- rhjr: 
 int
-main (void)
+main(void)
 {
   uint64_t buffer[ARENA_COMMIT_SIZE] = {0};
 
@@ -151,15 +150,15 @@ main (void)
 
   // rhjr: initialize robot arm.
   LimbedList list = {0};
-  limb_list_push(&arena, &list, limb_lit(0, 1,     90));
-  limb_list_push(&arena, &list, limb_lit(1, 1.414, 45)); 
-  limb_list_push(&arena, &list, limb_lit(2, 1.414,  0)); 
+  limb_list_push(&arena, &list, limb_lit(0, 1, 90));
+  limb_list_push(&arena, &list, limb_lit(1, 1, 45)); 
+  limb_list_push(&arena, &list, limb_lit(2, 1,  0)); 
 
   // rhjr: forward kinematics 
   kinematics_calculate_end_position(&list);
 
   // rhjr: inverse kinematics
-  kinematics_cyclic_coordinate_descent(&list, vec2_lit(2, 3));
+  kinematics_cyclic_coordinate_descent(&list, vec2_lit(2.5, 2.5));
 
   return 0;
 }
