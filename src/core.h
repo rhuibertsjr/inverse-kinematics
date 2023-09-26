@@ -5,10 +5,6 @@
 #include "math.h"
 
 //- rhjr: environment 
-#if !defined(_WIN64) || !defined(_MSC_VER)
-#warning "Only tested on Windows 11, with the MSVC compiler."
-#endif
-
 #define ARENA_COMMIT_SIZE 1024
 
 //- rhjr: arena allocator 
@@ -56,16 +52,26 @@ struct LimbedList
   uint32_t limb_amount;
 };
 
-void limb_list_push    (Arena *arena, LimbedList *list, Limb limb);
+void limb_list_push (Arena *arena, LimbedList *list, Limb limb);
 
 //- rhjr: kinematics 
-#define CCD_MAX_TRIES     10
-#define CCD_POS_THRESHOLD 0.1f
+#define CCD_MAX_TRIES     1000
+#define CCD_POS_THRESHOLD 0.001f
 
 // rhjr: forward kinematics 
 Vec2 kinematics_calculate_end_position (LimbedList *list);
 
 // rhjr: inverse kinematics
 void kinematics_cyclic_coordinate_descent (LimbedList *list, Vec2 target);
+
+//- rhjr: graphics 
+#define GFX_SCREEN_WIDTH 1024
+#define GFX_SCREEN_HEIGHT 720 
+#define gfx_center_x (GFX_SCREEN_WIDTH / 2)
+#define gfx_center_y (GFX_SCREEN_HEIGHT / 2)
+
+#define GFX_TARGET_FPS 60
+
+#define GFX_WINDOW_TITLE "(rhjr) Inverse kinematics demo"
 
 #endif

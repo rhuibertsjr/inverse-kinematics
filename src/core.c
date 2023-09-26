@@ -1,4 +1,5 @@
 #include "core.h"
+#include "..\inc\raylib.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -100,17 +101,19 @@ kinematics_cyclic_coordinate_descent (LimbedList *list, Vec2 target)
   { 
     Limb *limb = &current->limb;
     Vec2 destination =
-      vec2_normalize(vec2_subtract(target, current_position));
-    Vec2 current_position_norm = vec2_normalize(limb->head_position);
+      vec2_normalize(vec2_subtract(target, limb->tail_position));
+    Vec2 current_position_norm = 
+      vec2_normalize(vec2_subtract(current_position, limb->tail_position));
 
     // rhjr: target angle
     float target_angle = vec2_dot_product(destination, current_position_norm);
+
     if (target_angle < 0.99999) // rhjr: when angle is 1, no rotation is needed.
     {
       // rhjr: determine direction.
       Vec3 direction =
         vec3_cross_product(
-          vec3_lit(destination), vec3_lit(limb->head_position));
+          vec3_lit(destination), vec3_lit(current_position_norm));
       float turn_angle = radians_to_degrees(acosf(target_angle));
 
       if (direction.z > 0.0f) // rhjr: turn clockwise
@@ -140,25 +143,98 @@ kinematics_cyclic_coordinate_descent (LimbedList *list, Vec2 target)
 }
 
 //- rhjr: 
+int draw(LimbedList *list)
+{
+  Color limb_colour = (Color){ 190, 33, 55, 255 };
+  uint32_t ball_size = 10;
+
+  // rhjr: Flip the coordinates, that it becomes a graph.
+  Vector2 limb_tail_pos = {
+    (gfx_center_x + list->first->limb.tail_position.x),
+    (gfx_center_y + list->first->limb.tail_position.y)
+  };
+
+  DrawCircleV(limb_tail_pos, ball_size, BLACK);
+
+  for(LimbNode *current = list->first; current != NULL; current = current->next)
+  {
+    const uint32_t inc = 20;
+    Vector2 limb_tail_pos = {
+      (gfx_center_x + current->limb.head_position.x),
+      (gfx_center_y + current->limb.head_position.y)
+    };
+
+    DrawCircleV(limb_tail_pos, ball_size, limb_colour);
+    limb_colour.r += inc;
+    limb_colour.g -= inc;
+  }
+
+}
+
+
 int
 main(void)
 {
   uint64_t buffer[ARENA_COMMIT_SIZE] = {0};
-
+  
   Arena arena = {0};
   arena_init(&arena, &buffer, ARENA_COMMIT_SIZE);
-
+  
   // rhjr: initialize robot arm.
   LimbedList list = {0};
-  limb_list_push(&arena, &list, limb_lit(0, 1, 90));
-  limb_list_push(&arena, &list, limb_lit(1, 1, 45)); 
-  limb_list_push(&arena, &list, limb_lit(2, 1,  0)); 
+  //limb_list_push(&arena, &list, limb_lit(0, 1, 90));
+  //limb_list_push(&arena, &list, limb_lit(1, 1, 45)); 
+  //limb_list_push(&arena, &list, limb_lit(2, 1,  0)); 
 
+  limb_list_push(&arena, &list, limb_lit(0, 100, 90));
+  limb_list_push(&arena, &list, limb_lit(1, 100, 45)); 
+  limb_list_push(&arena, &list, limb_lit(2, 100,  0)); 
+  
   // rhjr: forward kinematics 
-  kinematics_calculate_end_position(&list);
+  Vec2 current_position_temp = kinematics_calculate_end_position(&list);
 
+  InitWindow(GFX_SCREEN_WIDTH, GFX_SCREEN_HEIGHT, GFX_WINDOW_TITLE);
+  SetTargetFPS(GFX_TARGET_FPS);              
+   
+  Vector2 target = { -100.0f, -100.0f };
+  Vector2 current_position = {
+    current_position_temp.x,
+    current_position_temp.y
+  };
+
+  while (!WindowShouldClose())    
+  {
+    target = GetMousePosition();
+
+    BeginDrawing();
+
+    ClearBackground(RAYWHITE);
+
+    draw(&list);
+    DrawCircleV(target, 10, BLUE);
+
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+    {
+      Vector2 new_target = {
+        ((target.x - (GFX_SCREEN_WIDTH / 2))),
+        ((target.y - (GFX_SCREEN_HEIGHT / 2)))
+      };
+
+      printf("%lf %lf\n", target.x, target.y);
+      printf("%lf %lf\n", new_target.x, new_target.y);
+
+      kinematics_cyclic_coordinate_descent(
+        &list, vec2_lit(new_target.x, new_target.y));
+      
+      current_position_temp = kinematics_calculate_end_position(&list);
+    }
+
+    EndDrawing();
+  }
+
+  CloseWindow();       
+  
   // rhjr: inverse kinematics
-  kinematics_cyclic_coordinate_descent(&list, vec2_lit(2.5, 2.5));
-
+  
   return 0;
 }
