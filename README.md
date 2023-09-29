@@ -1,5 +1,7 @@
 # Inverse Kinematics (CCD)
 
+![Preview](./res/preview.png)
+
 ## 1. Prerequisite 
 If you want to build this project from source, then you need the following dependencies:
 
