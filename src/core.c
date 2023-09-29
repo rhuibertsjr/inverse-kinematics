@@ -148,25 +148,19 @@ kinematics_cyclic_coordinate_descent (LimbedList *list, Vec2 target)
         vec3_cross_product(
           vec3_lit(destination), vec3_lit(current_position_norm));
 
-      // rhjr: constrain the turn angle.
-      float turn_angle =
-        CCD_CONSTRAINT(0, radians_to_degrees(acosf(target_angle)), 20);
+      float turn_angle = radians_to_degrees(acosf(target_angle));
+
+      // rhjr: damping -> restricting the the amount a limb can change.
+      if (turn_angle > CCD_DAMPING_WIDTH)
+      turn_angle = CCD_DAMPING_WIDTH;
 
       if (direction.z > 0.0f) // rhjr: turn clockwise
       {
-        float turn = limb->angle + turn_angle;
-
-        // rhjr: demping
-        if (turn < 135 || turn > -135)
-          limb->angle -= turn_angle;
+        limb->angle -= CCD_CONSTRAINT(-135, turn_angle, 135);
       }
       else if (direction.z < 0.0f) //rhjr: turn counter-clockwise
       {
-        float turn = limb->angle + turn_angle;
-
-        // rhjr: demping
-        if (turn < 135 || turn > -135)
-          limb->angle += turn_angle;
+        limb->angle += CCD_CONSTRAINT(-135, turn_angle, 135);;
       }
     }
 
@@ -179,14 +173,13 @@ kinematics_cyclic_coordinate_descent (LimbedList *list, Vec2 target)
       current = list->last;
 
     distance = vec2_distance(target, current_position);
-
-    printf("Limb %u: { x: %.2f, y: %.2f }\n",
-           limb->id, limb->head_position.x, limb->head_position.y);
   }
-  while(distance > CCD_POS_THRESHOLD && iterations++ < CCD_MAX_ITERATION);
+  while(distance > CCD_POS_THRESHOLD && ++iterations < CCD_MAX_ITERATION);
 
   printf("End effector: { x: %.2f, y: %.2f }\n",
          list->last->limb.head_position.x, list->last->limb.head_position.y);
+  printf("Target: { x: %.2f, y: %.2f } after %d iterations\n",
+         target.x, target.y, iterations);
 }
 
 
@@ -208,7 +201,7 @@ main(void)
   // rhjr: forward kinematics 
   Vec2 current_position_temp = kinematics_calculate_end_position(&list);
 
-#if RAYLIB
+  #if RAYLIB
   InitWindow(GFX_SCREEN_WIDTH, GFX_SCREEN_HEIGHT, GFX_WINDOW_TITLE);
   SetTargetFPS(GFX_TARGET_FPS);              
    
@@ -229,15 +222,12 @@ main(void)
     draw(&list);
     DrawCircleV(target, 10, BLUE);
 
-    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) || IsMouseButtonDown(MOUSE_BUTTON_LEFT))
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
     {
       Vector2 new_target = {
         ((target.x - (GFX_SCREEN_WIDTH / 2))),
         ((target.y - (GFX_SCREEN_HEIGHT / 2)))
       };
-
-      printf("%lf %lf\n", target.x, target.y);
-      printf("%lf %lf\n", new_target.x, new_target.y);
 
       kinematics_cyclic_coordinate_descent(
         &list, vec2_lit(new_target.x, new_target.y));

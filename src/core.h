@@ -61,8 +61,9 @@ struct LimbedList
 void limb_list_push (Arena *arena, LimbedList *list, Limb limb);
 
 //- rhjr: kinematics 
-#define CCD_MAX_ITERATION 1000
-#define CCD_POS_THRESHOLD 0.001f
+#define CCD_MAX_ITERATION 100
+#define CCD_POS_THRESHOLD 1.0f
+#define CCD_DAMPING_WIDTH 20
 
 // rhjr: clamp function
 #define CCD_CONSTRAINT(a,x,b) (((x)<(a))?(a):((b)<(x))?(b):(x))
