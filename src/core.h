@@ -7,6 +7,12 @@
 //- rhjr: environment 
 #define ARENA_COMMIT_SIZE 1024
 
+#ifndef RAYLIB
+  #define RAYLIB 0
+#else
+  #define RAYLIB 1
+#endif
+
 //- rhjr: arena allocator 
 typedef struct Arena Arena;
 struct Arena
@@ -55,8 +61,11 @@ struct LimbedList
 void limb_list_push (Arena *arena, LimbedList *list, Limb limb);
 
 //- rhjr: kinematics 
-#define CCD_MAX_TRIES     1000
+#define CCD_MAX_ITERATION 1000
 #define CCD_POS_THRESHOLD 0.001f
+
+// rhjr: clamp function
+#define CCD_CONSTRAINT(a,x,b) (((x)<(a))?(a):((b)<(x))?(b):(x))
 
 // rhjr: forward kinematics 
 Vec2 kinematics_calculate_end_position (LimbedList *list);
@@ -65,13 +74,15 @@ Vec2 kinematics_calculate_end_position (LimbedList *list);
 void kinematics_cyclic_coordinate_descent (LimbedList *list, Vec2 target);
 
 //- rhjr: graphics 
-#define GFX_SCREEN_WIDTH 1024
-#define GFX_SCREEN_HEIGHT 720 
-#define gfx_center_x (GFX_SCREEN_WIDTH / 2)
-#define gfx_center_y (GFX_SCREEN_HEIGHT / 2)
+#ifndef NO_RAYLIB
+  #define GFX_SCREEN_WIDTH 1024
+  #define GFX_SCREEN_HEIGHT 720 
+  #define gfx_center_x (GFX_SCREEN_WIDTH / 2)
+  #define gfx_center_y (GFX_SCREEN_HEIGHT / 2)
+  
+  #define GFX_TARGET_FPS 60
+  
+  #define GFX_WINDOW_TITLE "(rhjr) Inverse kinematics demo"
+#endif // NO_RAYLIB
 
-#define GFX_TARGET_FPS 60
-
-#define GFX_WINDOW_TITLE "(rhjr) Inverse kinematics demo"
-
-#endif
+#endif // CORE_H

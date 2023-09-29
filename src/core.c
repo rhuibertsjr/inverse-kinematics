@@ -1,8 +1,41 @@
 #include "core.h"
-#include "..\inc\raylib.h"
+#if RAYLIB
+  #include "..\inc\raylib.h"
+#endif
 
 #include <stdio.h>
 #include <string.h>
+
+//- rhjr
+int draw(LimbedList *list)
+{
+#if RAYLIB
+  Color limb_colour = (Color){ 190, 33, 55, 255 };
+  uint32_t ball_size = 10;
+
+  // rhjr: Flip the coordinates, that it becomes a graph.
+  Vector2 limb_tail_pos = {
+    (gfx_center_x + list->first->limb.tail_position.x),
+    (gfx_center_y + list->first->limb.tail_position.y)
+  };
+
+  DrawCircleV(limb_tail_pos, ball_size, BLACK);
+
+  for(LimbNode *current = list->first; current != NULL; current = current->next)
+  {
+    const uint32_t inc = 20;
+    Vector2 limb_tail_pos = {
+      (gfx_center_x + current->limb.head_position.x),
+      (gfx_center_y + current->limb.head_position.y)
+    };
+
+    DrawCircleV(limb_tail_pos, ball_size, limb_colour);
+    limb_colour.r += inc;
+    limb_colour.g -= inc;
+  }
+#endif
+  return 0;
+}
 
 //- rhjr: arena allocator 
 void
@@ -92,7 +125,7 @@ kinematics_cyclic_coordinate_descent (LimbedList *list, Vec2 target)
 {
   Vec2 current_position = kinematics_calculate_end_position(list);
   float distance = {0};
-  uint32_t tries = 0;
+  uint32_t iterations = 0;
 
   // rhjr: loop throught the list in reverse. 
   LimbNode *current = list->last;
@@ -114,64 +147,50 @@ kinematics_cyclic_coordinate_descent (LimbedList *list, Vec2 target)
       Vec3 direction =
         vec3_cross_product(
           vec3_lit(destination), vec3_lit(current_position_norm));
-      float turn_angle = radians_to_degrees(acosf(target_angle));
+
+      // rhjr: constrain the turn angle.
+      float turn_angle =
+        CCD_CONSTRAINT(0, radians_to_degrees(acosf(target_angle)), 20);
 
       if (direction.z > 0.0f) // rhjr: turn clockwise
-        limb->angle -= turn_angle;
+      {
+        float turn = limb->angle + turn_angle;
+
+        // rhjr: demping
+        if (turn < 135 || turn > -135)
+          limb->angle -= turn_angle;
+      }
       else if (direction.z < 0.0f) //rhjr: turn counter-clockwise
-        limb->angle += turn_angle;
+      {
+        float turn = limb->angle + turn_angle;
+
+        // rhjr: demping
+        if (turn < 135 || turn > -135)
+          limb->angle += turn_angle;
+      }
     }
 
     current_position = kinematics_calculate_end_position(list);
 
     // rhjr: next limb.
     if (current->prev != NULL)
-      current = current->prev;
+    current = current->prev;
     else 
       current = list->last;
 
     distance = vec2_distance(target, current_position);
 
     printf("Limb %u: { x: %.2f, y: %.2f }\n",
-      limb->id, limb->head_position.x, limb->head_position.y);
+           limb->id, limb->head_position.x, limb->head_position.y);
   }
-  while(distance > CCD_POS_THRESHOLD && tries++ < CCD_MAX_TRIES);
+  while(distance > CCD_POS_THRESHOLD && iterations++ < CCD_MAX_ITERATION);
 
   printf("End effector: { x: %.2f, y: %.2f }\n",
-    list->last->limb.head_position.x, list->last->limb.head_position.y);
-
-}
-
-//- rhjr: 
-int draw(LimbedList *list)
-{
-  Color limb_colour = (Color){ 190, 33, 55, 255 };
-  uint32_t ball_size = 10;
-
-  // rhjr: Flip the coordinates, that it becomes a graph.
-  Vector2 limb_tail_pos = {
-    (gfx_center_x + list->first->limb.tail_position.x),
-    (gfx_center_y + list->first->limb.tail_position.y)
-  };
-
-  DrawCircleV(limb_tail_pos, ball_size, BLACK);
-
-  for(LimbNode *current = list->first; current != NULL; current = current->next)
-  {
-    const uint32_t inc = 20;
-    Vector2 limb_tail_pos = {
-      (gfx_center_x + current->limb.head_position.x),
-      (gfx_center_y + current->limb.head_position.y)
-    };
-
-    DrawCircleV(limb_tail_pos, ball_size, limb_colour);
-    limb_colour.r += inc;
-    limb_colour.g -= inc;
-  }
-
+         list->last->limb.head_position.x, list->last->limb.head_position.y);
 }
 
 
+//- rhjr
 int
 main(void)
 {
@@ -182,10 +201,6 @@ main(void)
   
   // rhjr: initialize robot arm.
   LimbedList list = {0};
-  //limb_list_push(&arena, &list, limb_lit(0, 1, 90));
-  //limb_list_push(&arena, &list, limb_lit(1, 1, 45)); 
-  //limb_list_push(&arena, &list, limb_lit(2, 1,  0)); 
-
   limb_list_push(&arena, &list, limb_lit(0, 100, 90));
   limb_list_push(&arena, &list, limb_lit(1, 100, 45)); 
   limb_list_push(&arena, &list, limb_lit(2, 100,  0)); 
@@ -193,6 +208,7 @@ main(void)
   // rhjr: forward kinematics 
   Vec2 current_position_temp = kinematics_calculate_end_position(&list);
 
+#if RAYLIB
   InitWindow(GFX_SCREEN_WIDTH, GFX_SCREEN_HEIGHT, GFX_WINDOW_TITLE);
   SetTargetFPS(GFX_TARGET_FPS);              
    
@@ -213,7 +229,7 @@ main(void)
     draw(&list);
     DrawCircleV(target, 10, BLUE);
 
-    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) || IsMouseButtonDown(MOUSE_BUTTON_LEFT))
     {
       Vector2 new_target = {
         ((target.x - (GFX_SCREEN_WIDTH / 2))),
@@ -233,8 +249,13 @@ main(void)
   }
 
   CloseWindow();       
+#else
   
   // rhjr: inverse kinematics
+  kinematics_cyclic_coordinate_descent(
+    &list, vec2_lit(230, 150));
+
+#endif
   
   return 0;
 }
