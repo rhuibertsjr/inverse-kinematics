@@ -10,8 +10,8 @@
 int draw(LimbedList *list)
 {
 #if RAYLIB
-  Color limb_colour = (Color){ 190, 33, 55, 255 };
-  uint32_t ball_size = 10;
+  const uint32_t ball_size = 10;
+  const uint32_t limb_width = 20.0f;
 
   // rhjr: Flip the coordinates, that it becomes a graph.
   Vector2 limb_tail_pos = {
@@ -19,19 +19,28 @@ int draw(LimbedList *list)
     (gfx_center_y + list->first->limb.tail_position.y)
   };
 
+  Vector2 limb_head_pos = {
+    (gfx_center_x + list->first->limb.head_position.x),
+    (gfx_center_y + list->first->limb.head_position.y)
+  };
+
+  DrawLineEx(limb_tail_pos, limb_head_pos, limb_width, LIGHTGRAY);
   DrawCircleV(limb_tail_pos, ball_size, BLACK);
 
   for(LimbNode *current = list->first; current != NULL; current = current->next)
   {
-    const uint32_t inc = 20;
     Vector2 limb_tail_pos = {
       (gfx_center_x + current->limb.head_position.x),
       (gfx_center_y + current->limb.head_position.y)
     };
 
-    DrawCircleV(limb_tail_pos, ball_size, limb_colour);
-    limb_colour.r += inc;
-    limb_colour.g -= inc;
+    Vector2 limb_head_pos = {
+      (gfx_center_x + current->limb.tail_position.x),
+      (gfx_center_y + current->limb.tail_position.y)
+    };
+
+    DrawLineEx(limb_tail_pos, limb_head_pos, limb_width, LIGHTGRAY);
+    DrawCircleV(limb_tail_pos, ball_size, GRAY);
   }
 #endif
   return 0;
@@ -220,7 +229,7 @@ main(void)
     ClearBackground(RAYWHITE);
 
     draw(&list);
-    DrawCircleV(target, 10, BLUE);
+    DrawCircleV(target, 10, RED);
 
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
     {
@@ -239,11 +248,11 @@ main(void)
   }
 
   CloseWindow();       
-#else
+  #else
   
   // rhjr: inverse kinematics
-  kinematics_cyclic_coordinate_descent(
-    &list, vec2_lit(230, 150));
+    kinematics_cyclic_coordinate_descent(
+      &list, vec2_lit(230, 150));
 
 #endif
   
